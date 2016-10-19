@@ -2,6 +2,13 @@ package uk.ac.imperial.pipe.models.petrinet;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
+
+import nju.edu.software.proofchain.model.ChainHead;
+import nju.edu.software.proofchain.model.ChainUnit;
+import nju.edu.software.proofchain.model.LinkPointInboundArc;
+import nju.edu.software.proofchain.model.LinkPointOutboundArc;
+import nju.edu.software.proofchain.model.PCLinkPoint;
+
 import org.apache.commons.collections.CollectionUtils;
 import uk.ac.imperial.pipe.exceptions.InvalidRateException;
 import uk.ac.imperial.pipe.exceptions.PetriNetComponentException;
@@ -89,6 +96,30 @@ public class PetriNet {
      */
     public static final String DELETE_RATE_PARAMETER_CHANGE_MESSAGE = "deleteRateParameter";
 
+    /*
+     * Message fired when a link point is added
+     */
+    public static final String NEW_lINK_POINT_CHANGE_MESSAGE = "newLinkPoint";
+    
+    /*
+     * Message fired when a link point is deleted
+     */
+    public static final String DELETE_lINK_POINT_CHANGE_MESSAGE = "deleteLinkPoint";
+
+    /*
+     * whh:需要写链头New ChainHead Message吗
+     * Message fired when a chain unit is added
+     */
+    public static final String NEW_CHAIN_UNIT_CHANGE_MESSAGE = "newChainUnit";
+    
+    /*
+     * Message fired when a chain unit is deleted
+     */
+    public static final String DELETE_CHAIN_UNIT_CHANGE_MESSAGE = "deleteChainUnit";
+
+    
+    
+    
     /**
      * Property change support used to fire messages and register listeners to
      */
@@ -129,7 +160,48 @@ public class PetriNet {
      * Maps outbound arc id -> outbound arc
      */
     private final Map<String, OutboundArc> outboundArcs = new HashMap<>();
+    /*
+     * whh Maps link point id -> PCLinkPoint
+     */
+    private final Map<String, PCLinkPoint> pclinkpoints = new HashMap<>();
 
+    /*
+     * whh Maps chain head id -> chain head
+     */
+    private final Map<String, ChainHead> chainHeads = new HashMap<>();
+
+    /*
+     * whh Maps chain unit id -> chain unit,
+     * 问题：petri net上应该放ChainUnit，那么chainHeads应该放在chain unit里面，而不应该单独拎出来
+     * 但同时箭头是指向ChainHead的
+     */
+    private final Map<String, ChainUnit> chainUnits = new HashMap<>();
+
+    
+    
+    /*
+     * whh new arc map: arc id -> LinkPointInboundArc
+     */
+    private final Map<String,LinkPointInboundArc> lp_inboundArcs = new HashMap<>();
+
+    /*
+     * whh new arc map: arc id -> LinkPointOutboundArc
+     */
+    private final Map<String,LinkPointOutboundArc> lp_outboundArcs = new HashMap<>();
+
+    /*
+     * whh
+     *  Maps LinkPoint id -> outbound arcs out of the link point
+     */
+    private final Multimap<String, LinkPointOutboundArc> linkpointOutboundArcs = HashMultimap.create();
+
+    /*
+     * whh
+     * Maps LinkPoint id -> inbound arcs into the LinkPoint
+     */
+    private final Multimap<String, LinkPointInboundArc> linkpointInboundArcs =  HashMultimap.create();
+
+    
     /**
      * Maps rate paramter id -> rate paramter
      */
@@ -213,6 +285,11 @@ public class PetriNet {
         componentMaps.put(Token.class, tokens);
         componentMaps.put(RateParameter.class, rateParameters);
         componentMaps.put(Annotation.class, annotations);
+        //whh:ChainUnit应该实现Connectable接口
+        componentMaps.put(PCLinkPoint.class, pclinkpoints);
+        componentMaps.put(ChainUnit.class, chainUnits);
+        componentMaps.put(LinkPointInboundArc.class, lp_inboundArcs);
+        componentMaps.put(LinkPointOutboundArc.class, lp_outboundArcs);       
     }
 
     @Override
@@ -224,6 +301,12 @@ public class PetriNet {
         result = 31 * result + outboundArcs.hashCode();
         result = 31 * result + annotations.hashCode();
         result = 31 * result + rateParameters.hashCode();
+        //whh:
+        result = 31 * result + pclinkpoints.hashCode();
+        result = 31 * result + chainUnits.hashCode();
+        result = 31 * result + lp_inboundArcs.hashCode();
+        result = 31 * result + lp_outboundArcs.hashCode();
+
         result = 31 * result + (petriNetName != null ? petriNetName.hashCode() : 0);
         return result;
     }
@@ -264,7 +347,18 @@ public class PetriNet {
         if (!CollectionUtils.isEqualCollection(transitions.values(), petriNet.transitions.values())) {
             return false;
         }
-
+        if (!CollectionUtils.isEqualCollection(pclinkpoints.values(), petriNet.pclinkpoints.values())) {
+            return false;
+        }
+        if (!CollectionUtils.isEqualCollection(chainUnits.values(), petriNet.chainUnits.values())) {
+            return false;
+        }        
+        if (!CollectionUtils.isEqualCollection(lp_inboundArcs.values(), petriNet.lp_inboundArcs.values())) {
+            return false;
+        }         
+        if (!CollectionUtils.isEqualCollection(lp_outboundArcs.values(), petriNet.lp_outboundArcs.values())) {
+            return false;
+        }         
         return true;
     }
 
@@ -365,6 +459,46 @@ public class PetriNet {
         changeSupport.firePropertyChange(DELETE_PLACE_CHANGE_MESSAGE, place, null);
     }
 
+ 
+    /*
+     * whh: Adds chain unit to the Petri net
+     *
+     * @param chain unit to add to Petri net
+     */
+    public void addChainUnit(ChainUnit chainUnit) {
+        if (!chainUnits.containsValue(chainUnit)) {
+            chainUnits.put(chainUnit.getId(), chainUnit);
+            chainUnit.addPropertyChangeListener(new NameChangeListener<>(chainUnit, chainUnits));
+            changeSupport.firePropertyChange(NEW_CHAIN_UNIT_CHANGE_MESSAGE, null, chainUnit);
+        }
+    }
+
+    /*
+     *whh @return all ChainUnits currently in the Petri net
+     */
+    public Collection<ChainUnit> getChainUnits() {
+        return chainUnits.values();
+    }
+
+    /*
+     * Removes the chain unit and all arcs connected to the chain unit from the
+     * Petri net
+     *
+     * @param chain unit to remove from Petri net
+     * @throws PetriNetComponentException if component does not exist in the Petri net
+     */
+    public void removeChainUnit(ChainUnit chainunit) throws PetriNetComponentException {
+        Collection<String> components = getComponentsReferencingId(place.getId());
+        if (!components.isEmpty()) {
+            throw new PetriNetComponentException("Cannot delete " + place.getId() + " it is referenced in a functional expression!");
+        }
+        this.places.remove(place.getId());
+        for (InboundArc arc : outboundArcs(place)) {
+            removeArc(arc);
+        }
+        changeSupport.firePropertyChange(DELETE_PLACE_CHANGE_MESSAGE, place, null);
+    }
+    
     /**
      *
      * @param componentId component id to find
@@ -525,7 +659,53 @@ public class PetriNet {
             changeSupport.firePropertyChange(NEW_ARC_CHANGE_MESSAGE, null, outboundArc);
         }
     }
-
+    
+    /*
+     * whh,加入向link point进来的线条
+     */
+    public void addArc(LinkPointInboundArc lpinboundArc){
+        if (!lp_inboundArcs.containsKey(lpinboundArc.getId())) {
+            lp_inboundArcs.put(lpinboundArc.getId(), lpinboundArc);
+            linkpointInboundArcs.put(lpinboundArc.getTarget().getId(), lpinboundArc);
+            lpinboundArc.addPropertyChangeListener(new NameChangeListener<>(lpinboundArc, lp_inboundArcs));
+            changeSupport.firePropertyChange(NEW_ARC_CHANGE_MESSAGE, null, lpinboundArc);
+        }
+    }
+    
+    /*
+     * 需要自己写特定的的message：DELETE_ARC_CHANGE_MESSAGE？
+     */
+    public void removeArc(LinkPointInboundArc arc){
+    	lp_inboundArcs.remove(arc.getId());
+    	linkpointInboundArcs.remove(arc.getTarget().getId(), arc);
+        changeSupport.firePropertyChange(DELETE_ARC_CHANGE_MESSAGE, arc, null);
+    }
+    
+    
+    /*
+     * whh,加入从link point出去的线条
+     */
+    public void addArc(LinkPointOutboundArc lpoutboundArc){
+    	//whh TODO:要不要替换NEW_ARC_CHANGE_MESSAGE
+        if (!lp_outboundArcs.containsKey(lpoutboundArc.getId())) {
+            lp_outboundArcs.put(lpoutboundArc.getId(), lpoutboundArc);
+            linkpointOutboundArcs.put(lpoutboundArc.getSource().getId(), lpoutboundArc);
+            lpoutboundArc.addPropertyChangeListener(new NameChangeListener<>(lpoutboundArc, lp_outboundArcs));
+            changeSupport.firePropertyChange(NEW_ARC_CHANGE_MESSAGE, null, lpoutboundArc);
+        }
+    }
+    
+    /*
+     * whh: Removes the specified arc from the Petri net
+     *
+     * @param arc to remove from the Petri net
+     */
+    public void removeArc(LinkPointOutboundArc arc) {
+        lp_outboundArcs.remove(arc.getId());
+        linkpointOutboundArcs.remove(arc.getSource().getId(), arc);
+        changeSupport.firePropertyChange(DELETE_ARC_CHANGE_MESSAGE, arc, null);
+    }
+    
     /**
      * @return Petri net's collection of arcs
      */

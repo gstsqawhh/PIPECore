@@ -1,5 +1,7 @@
 package uk.ac.imperial.pipe.models.petrinet;
 
+import nju.edu.software.proofchain.model.LinkPointInboundArc;
+import nju.edu.software.proofchain.model.LinkPointOutboundArc;
 import uk.ac.imperial.pipe.exceptions.InvalidRateException;
 
 /**
@@ -82,4 +84,16 @@ public final class PetriNetComponentAddVisitor
     public void visit(OutboundArc outboundArc) {
         petriNet.addArc(outboundArc);
     }
+
+	@Override
+	public void visit(LinkPointInboundArc lpinboundArc) {
+		// TODO Auto-generated method stub
+		petriNet.addArc(lpinboundArc);
+	}
+
+	@Override
+	public void visit(LinkPointOutboundArc lpoutboundArc) {
+		// TODO Auto-generated method stub
+		petriNet.addArc(lpoutboundArc);
+	}
 }

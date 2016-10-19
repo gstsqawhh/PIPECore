@@ -7,6 +7,8 @@ import java.awt.geom.Point2D;
 import java.util.Collection;
 import java.util.List;
 
+import nju.edu.software.proofchain.model.LinkPointInboundArc;
+
 /**
  * Translates moveable PetriNetComponents by a given amount
  */
@@ -119,4 +121,11 @@ public final class TranslationVisitor
             }
         }
     }
+
+
+	@Override
+	public void visit(LinkPointInboundArc lpinboundArc) {
+		// TODO Auto-generated method stub
+		
+	}
 }

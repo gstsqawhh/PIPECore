@@ -115,6 +115,47 @@ public abstract class AbstractArc<S extends Connectable, T extends Connectable> 
 
     }
 
+    public AbstractArc(S source, T target, ArcType type) {
+        this.source = source;
+        this.target = target;
+        this.type = type;
+
+        this.id = source.getId() + " TO " + target.getId();
+        tagged = false;
+
+
+        sourcePoint = new ArcPoint(getStartPoint(), false, false);
+        targetPoint = new ArcPoint(getEndPoint(), false, false);
+        arcPoints.add(sourcePoint);
+        arcPoints.add(targetPoint);
+
+        source.addPropertyChangeListener(new PropertyChangeListener(){
+
+            @Override
+            public void propertyChange(PropertyChangeEvent evt) {
+                String name = evt.getPropertyName();
+                if (name.equals(Connectable.X_CHANGE_MESSAGE) || name.equals(Connectable.Y_CHANGE_MESSAGE) || name.equals(Transition.ANGLE_CHANGE_MESSAGE)) {
+
+                    sourcePoint.setPoint(getStartPoint());
+                    targetPoint.setPoint(getEndPoint());
+                }
+            }
+        });
+        target.addPropertyChangeListener(new PropertyChangeListener(){
+
+            @Override
+            public void propertyChange(PropertyChangeEvent evt) {
+                String name = evt.getPropertyName();
+                if (name.equals(Connectable.X_CHANGE_MESSAGE) || name.equals(Connectable.Y_CHANGE_MESSAGE) || name.equals(Transition.ANGLE_CHANGE_MESSAGE)) {
+                    sourcePoint.setPoint(getStartPoint());
+                    targetPoint.setPoint(getEndPoint());
+                }
+            }
+        });
+
+
+    }
+    
     /**
      *
      * @return weight of the arc

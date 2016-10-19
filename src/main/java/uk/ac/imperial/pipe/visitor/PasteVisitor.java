@@ -8,6 +8,8 @@ import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import nju.edu.software.proofchain.model.LinkPointInboundArc;
+
 /**
  * Paste visitor pastes components into a petri net
  */
@@ -242,4 +244,10 @@ public final class PasteVisitor implements TransitionVisitor, ArcVisitor, Discre
         petriNet.addArc(newArc);
         createdComponents.add(newArc);
     }
+
+	@Override
+	public void visit(LinkPointInboundArc lpinboundArc) {
+		// TODO Auto-generated method stub
+		
+	}
 }
